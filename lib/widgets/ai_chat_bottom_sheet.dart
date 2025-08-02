@@ -18,6 +18,7 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
   bool _isLoading = false;
   bool _isListening = false;
   String _currentLanguage = 'en-US'; // Default language
+  String _selectedVoiceLanguage = 'en-US'; // Selected voice input language
 
   final List<Map<String, String>> _messages = [];
 
@@ -32,6 +33,12 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
     'कम स्टॉक वाली वस्तुएं दिखाएं', // Hindi suggestion
   ];
 
+  // Language options for voice input
+  final Map<String, String> _languageOptions = {
+    'en-US': 'English',
+    'hi-IN': 'हिंदी (Hindi)',
+  };
+
   @override
   void dispose() {
     _queryController.dispose();
@@ -39,18 +46,26 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
     super.dispose();
   }
 
-  // Detect language based on input (basic heuristic)
+  // Detect language based on input (improved heuristic)
   bool _isHindiInput(String text) {
     return RegExp(r'[\u0900-\u097F]').hasMatch(text); // Detects Devanagari script
   }
 
   void _updateLanguage(String text) {
     if (_isHindiInput(text)) {
-      _speechService.setLanguage('hi-IN');
       setState(() => _currentLanguage = 'hi-IN');
     } else {
-      _speechService.setLanguage('en-US');
       setState(() => _currentLanguage = 'en-US');
+    }
+  }
+
+  void _changeVoiceLanguage(String? language) {
+    if (language != null) {
+      setState(() {
+        _selectedVoiceLanguage = language;
+      });
+      // Set language immediately when changed
+      _speechService.setLanguage(language);
     }
   }
 
@@ -84,10 +99,43 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                 ),
                 const SizedBox(height: 12),
 
-                // Title
-                const Text(
-                  'AI Assistant',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                // Title and Language Selector Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'AI Assistant',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    // Language Selector for Voice Input
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedVoiceLanguage,
+                          icon: const Icon(Icons.mic, size: 16),
+                          style: const TextStyle(fontSize: 12),
+                          onChanged: _changeVoiceLanguage,
+                          items: _languageOptions.entries.map((entry) {
+                            return DropdownMenuItem<String>(
+                              value: entry.key,
+                              child: Text(
+                                entry.value,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
 
@@ -98,10 +146,23 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                     children: [
                       if (_messages.isEmpty) ...[
                         const SizedBox(height: 32),
-                        const Center(
-                          child: Text(
-                            'Ask anything about your inventory!',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                        Center(
+                          child: Column(
+                            children: [
+                              const Text(
+                                'Ask anything about your inventory!',
+                                style: TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Voice Language: ${_languageOptions[_selectedVoiceLanguage]}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -132,7 +193,7 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                                     ? MarkdownBody(
                                         data: message['content'] ?? '',
                                         styleSheet: MarkdownStyleSheet(
-                                          p: TextStyle(
+                                          p: const TextStyle(
                                             color: Colors.black87,
                                             fontSize: 14,
                                           ),
@@ -179,6 +240,12 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                             onPressed: () {
                               _queryController.text = suggestion;
                               _updateLanguage(suggestion);
+                              // Auto-switch voice language based on suggestion language
+                              if (_isHindiInput(suggestion) && _selectedVoiceLanguage != 'hi-IN') {
+                                _changeVoiceLanguage('hi-IN');
+                              } else if (!_isHindiInput(suggestion) && _selectedVoiceLanguage != 'en-US') {
+                                _changeVoiceLanguage('en-US');
+                              }
                             },
                             backgroundColor: Colors.blue.withOpacity(0.1),
                             labelStyle: TextStyle(color: Colors.blue[800]),
@@ -201,7 +268,9 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                       child: TextField(
                         controller: _queryController,
                         decoration: InputDecoration(
-                          hintText: 'Type a question...',
+                          hintText: _selectedVoiceLanguage == 'hi-IN' 
+                              ? 'सवाल पूछें...' 
+                              : 'Type a question...',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -214,13 +283,38 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    IconButton(
-                      icon: Icon(
-                        _isListening ? Icons.mic : Icons.mic_none,
-                        color: _isListening ? Colors.red : Colors.blue,
+                    // Voice Input Button with Language Indicator
+                    Container(
+                      decoration: BoxDecoration(
+                        color: _isListening ? Colors.red.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _isListening ? Colors.red : Colors.blue,
+                          width: 1,
+                        ),
                       ),
-                      onPressed: _startVoiceInput,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              _isListening ? Icons.mic : Icons.mic_none,
+                              color: _isListening ? Colors.red : Colors.blue,
+                            ),
+                            onPressed: _startVoiceInput,
+                          ),
+                          Text(
+                            _selectedVoiceLanguage == 'hi-IN' ? 'हिं' : 'EN',
+                            style: TextStyle(
+                              fontSize: 8,
+                              color: _isListening ? Colors.red : Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: _isLoading
                           ? const SizedBox(
@@ -233,6 +327,20 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                     ),
                   ],
                 ),
+                
+                // Voice language status indicator
+                if (_isListening)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Listening in ${_languageOptions[_selectedVoiceLanguage]}...',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -246,20 +354,35 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
       await _speechService.stopListening();
       setState(() => _isListening = false);
     } else {
+      // Set the speech service to use the selected language
+      await _speechService.setLanguage(_selectedVoiceLanguage);
+      
       setState(() => _isListening = true);
       try {
         await _speechService.startListening((result) {
-          setState(() {
-            _queryController.text = result;
-            _isListening = false;
-            _updateLanguage(result); // Update language based on recognized text
-          });
+          if (result.isNotEmpty) {
+            setState(() {
+              _queryController.text = result;
+              _isListening = false;
+              _updateLanguage(result); // Update response language based on recognized text
+            });
+          } else {
+            setState(() => _isListening = false);
+          }
         });
       } catch (e) {
         setState(() => _isListening = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Speech recognition error: $e')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _selectedVoiceLanguage == 'hi-IN' 
+                    ? 'बोलने में त्रुटि: $e' 
+                    : 'Speech recognition error: $e'
+              ),
+            ),
+          );
+        }
       }
     }
   }
@@ -272,7 +395,12 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
         message['isSpeaking'] = 'false';
       });
     } else {
-      await _speechService.speak(message['content'] ?? '');
+      // Set speech language based on message content
+      final messageContent = message['content'] ?? '';
+      final speechLang = _isHindiInput(messageContent) ? 'hi-IN' : 'en-US';
+      _speechService.setLanguage(speechLang);
+      
+      await _speechService.speak(messageContent);
       setState(() {
         _messages.forEach((msg) => msg['isSpeaking'] = 'false'); // Reset others
         message['isSpeaking'] = 'true';
@@ -295,8 +423,12 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
       setState(() {
         _messages.add({'role': 'ai', 'content': response, 'isSpeaking': 'false'});
       });
+      
       // Automatically speak AI response in the appropriate language
       _updateLanguage(response);
+      final speechLang = _isHindiInput(response) ? 'hi-IN' : 'en-US';
+      _speechService.setLanguage(speechLang);
+      
       await _speechService.speak(response);
       setState(() {
         _messages.last['isSpeaking'] = 'true';
