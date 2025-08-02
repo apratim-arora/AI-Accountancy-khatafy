@@ -1,0 +1,57 @@
+name: accountancy_ai_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  sqflite: ^2.4.2
+  path: ^1.9.1
+  http: ^1.4.0
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  speech_to_text: ^7.1.0
+  flutter_tts: ^4.2.3
+  intl: ^0.20.2
+  fl_chart: ^1.0.0
+  flutter_native_splash: ^2.4.6
+  animate_do: ^4.2.0
+  flutter_dotenv: ^5.2.1
+  permission_handler: ^12.0.1
+  flutter_gemini: ^3.0.0
+  flutter_markdown: ^0.7.7+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  riverpod_generator: ^2.6.5
+  build_runner: ^2.5.4
+  json_annotation: ^4.9.0
+  json_serializable: ^6.9.5
+  flutter_launcher_icons: ^0.14.4
+  change_app_package_name: ^1.5.0
+
+flutter_native_splash:
+  color: "#7a34d3"  # Background color of your splash screen (light mode)
+  image: assets\icon\splash\splash.jpeg # Path to your splash screen icon image
+  # Optional configurations for dark mode and specific platforms can also be added here.
+
+  # Android 12+ specific settings
+  android_12:
+    image: assets\icon\splash\splash.jpeg # Icon for Android 12+ (clipped to a circle)
+    icon_background_color: "#7a34d3" # Background color behind the icon for Android 12+
+    # Optional dark mode settings for Android 12+
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/
+    - assets/splash/
+    - assets/.env
+
