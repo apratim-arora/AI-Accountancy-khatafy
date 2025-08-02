@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
 import '../services/ai_service.dart';
 import '../services/speech_service.dart';
 
@@ -48,7 +49,34 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
 
   // Detect language based on input (improved heuristic)
   bool _isHindiInput(String text) {
-    return RegExp(r'[\u0900-\u097F]').hasMatch(text); // Detects Devanagari script
+    return RegExp(r'[\u0900-\u097F]')
+        .hasMatch(text); // Detects Devanagari script
+  }
+
+  String _stripMarkdown(String text) {
+    // Convert Markdown to HTML
+    String html = md.markdownToHtml(text, inlineSyntaxes: [
+      md.InlineHtmlSyntax(),
+      md.StrikethroughSyntax(),
+      md.EmphasisSyntax.asterisk(),
+      md.EmphasisSyntax.underscore(),
+      md.CodeSyntax(),
+    ], blockSyntaxes: [
+      md.FencedCodeBlockSyntax(),
+      md.TableSyntax(),
+      md.HeaderSyntax(),
+      md.HorizontalRuleSyntax(),
+      md.UnorderedListSyntax(),
+      md.OrderedListSyntax(),
+    ]);
+    // Strip HTML tags and clean up
+    String plainText = html
+        .replaceAll(RegExp(r'<[^>]+>'), '') // Remove HTML tags
+        .replaceAll(RegExp(r'\n\s*\n+'), '\n') // Remove extra newlines
+        .replaceAll(RegExp(r'&nbsp;'), ' ') // Replace non-breaking spaces
+        .replaceAll(RegExp(r'&(amp|lt|gt);'), '') // Remove HTML entities
+        .trim();
+    return plainText;
   }
 
   void _updateLanguage(String text) {
@@ -79,12 +107,14 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
       maxChildSize: 0.95,
       builder: (_, __) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
               children: [
@@ -105,7 +135,8 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                   children: [
                     const Text(
                       'AI Assistant',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     // Language Selector for Voice Input
                     Container(
@@ -151,7 +182,8 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                             children: [
                               const Text(
                                 'Ask anything about your inventory!',
-                                style: TextStyle(fontSize: 16, color: Colors.grey),
+                                style:
+                                    TextStyle(fontSize: 16, color: Colors.grey),
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -173,17 +205,22 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                         final isAI = message['role'] == 'ai';
 
                         return Align(
-                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: isUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.symmetric(vertical: 4),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
                             constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.75,
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
                             ),
                             decoration: BoxDecoration(
                               color: isUser
                                   ? Colors.blue[100]
-                                  : colorScheme.surfaceContainerHighest.withOpacity(0.6),
+                                  : colorScheme.surfaceContainerHighest
+                                      .withOpacity(0.6),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
@@ -197,9 +234,12 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                                             color: Colors.black87,
                                             fontSize: 14,
                                           ),
-                                          strong: const TextStyle(fontWeight: FontWeight.bold),
-                                          em: const TextStyle(fontStyle: FontStyle.italic),
-                                          listBullet: const TextStyle(fontSize: 14),
+                                          strong: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                          em: const TextStyle(
+                                              fontStyle: FontStyle.italic),
+                                          listBullet:
+                                              const TextStyle(fontSize: 14),
                                         ),
                                       )
                                     : Text(
@@ -214,7 +254,8 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                                     alignment: Alignment.bottomRight,
                                     child: IconButton(
                                       icon: Icon(
-                                        _speechService.isSpeaking && message['isSpeaking'] == 'true'
+                                        _speechService.isSpeaking &&
+                                                message['isSpeaking'] == 'true'
                                             ? Icons.volume_off
                                             : Icons.volume_up,
                                         size: 18,
@@ -241,16 +282,19 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                               _queryController.text = suggestion;
                               _updateLanguage(suggestion);
                               // Auto-switch voice language based on suggestion language
-                              if (_isHindiInput(suggestion) && _selectedVoiceLanguage != 'hi-IN') {
+                              if (_isHindiInput(suggestion) &&
+                                  _selectedVoiceLanguage != 'hi-IN') {
                                 _changeVoiceLanguage('hi-IN');
-                              } else if (!_isHindiInput(suggestion) && _selectedVoiceLanguage != 'en-US') {
+                              } else if (!_isHindiInput(suggestion) &&
+                                  _selectedVoiceLanguage != 'en-US') {
                                 _changeVoiceLanguage('en-US');
                               }
                             },
                             backgroundColor: Colors.blue.withOpacity(0.1),
                             labelStyle: TextStyle(color: Colors.blue[800]),
                             shape: StadiumBorder(
-                              side: BorderSide(color: Colors.blue.withOpacity(0.3)),
+                              side: BorderSide(
+                                  color: Colors.blue.withOpacity(0.3)),
                             ),
                           );
                         }).toList(),
@@ -268,25 +312,29 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                       child: TextField(
                         controller: _queryController,
                         decoration: InputDecoration(
-                          hintText: _selectedVoiceLanguage == 'hi-IN' 
-                              ? 'सवाल पूछें...' 
+                          hintText: _selectedVoiceLanguage == 'hi-IN'
+                              ? 'सवाल पूछें...'
                               : 'Type a question...',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
                         ),
                         minLines: 1,
                         maxLines: 3,
                         enabled: !_isLoading,
-                        onChanged: _updateLanguage, // Update language on text input
+                        onChanged:
+                            _updateLanguage, // Update language on text input
                       ),
                     ),
                     const SizedBox(width: 8),
                     // Voice Input Button with Language Indicator
                     Container(
                       decoration: BoxDecoration(
-                        color: _isListening ? Colors.red.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                        color: _isListening
+                            ? Colors.red.withOpacity(0.1)
+                            : Colors.blue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: _isListening ? Colors.red : Colors.blue,
@@ -327,7 +375,7 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                     ),
                   ],
                 ),
-                
+
                 // Voice language status indicator
                 if (_isListening)
                   Padding(
@@ -356,7 +404,7 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
     } else {
       // Set the speech service to use the selected language
       await _speechService.setLanguage(_selectedVoiceLanguage);
-      
+
       setState(() => _isListening = true);
       try {
         await _speechService.startListening((result) {
@@ -364,7 +412,8 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
             setState(() {
               _queryController.text = result;
               _isListening = false;
-              _updateLanguage(result); // Update response language based on recognized text
+              _updateLanguage(
+                  result); // Update response language based on recognized text
             });
           } else {
             setState(() => _isListening = false);
@@ -375,11 +424,9 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                _selectedVoiceLanguage == 'hi-IN' 
-                    ? 'बोलने में त्रुटि: $e' 
-                    : 'Speech recognition error: $e'
-              ),
+              content: Text(_selectedVoiceLanguage == 'hi-IN'
+                  ? 'बोलने में त्रुटि: $e'
+                  : 'Speech recognition error: $e'),
             ),
           );
         }
@@ -388,7 +435,8 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
   }
 
   void _toggleSpeak(Map<String, String> message) async {
-    final isSpeaking = _speechService.isSpeaking && message['isSpeaking'] == 'true';
+    final isSpeaking =
+        _speechService.isSpeaking && message['isSpeaking'] == 'true';
     if (isSpeaking) {
       await _speechService.stop();
       setState(() {
@@ -396,13 +444,15 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
       });
     } else {
       // Set speech language based on message content
-      final messageContent = message['content'] ?? '';
-      final speechLang = _isHindiInput(messageContent) ? 'hi-IN' : 'en-US';
+      final cleanText = _stripMarkdown(message['content'] ?? '');
+      final speechLang = _isHindiInput(cleanText) ? 'hi-IN' : 'en-US';
       _speechService.setLanguage(speechLang);
-      
-      await _speechService.speak(messageContent);
+
+      await _speechService.speak(cleanText);
       setState(() {
-        _messages.forEach((msg) => msg['isSpeaking'] = 'false'); // Reset others
+        for (var msg in _messages) {
+          msg['isSpeaking'] = 'false';
+        } // Reset others
         message['isSpeaking'] = 'true';
       });
     }
@@ -421,21 +471,24 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
     try {
       final response = await _aiService.processQuery(input);
       setState(() {
-        _messages.add({'role': 'ai', 'content': response, 'isSpeaking': 'false'});
+        _messages
+            .add({'role': 'ai', 'content': response, 'isSpeaking': 'false'});
       });
-      
+
       // Automatically speak AI response in the appropriate language
       _updateLanguage(response);
+      final cleanText = _stripMarkdown(response);
       final speechLang = _isHindiInput(response) ? 'hi-IN' : 'en-US';
       _speechService.setLanguage(speechLang);
-      
-      await _speechService.speak(response);
+
+      await _speechService.speak(cleanText);
       setState(() {
         _messages.last['isSpeaking'] = 'true';
       });
     } catch (e) {
       setState(() {
-        _messages.add({'role': 'ai', 'content': 'Error: $e', 'isSpeaking': 'false'});
+        _messages
+            .add({'role': 'ai', 'content': 'Error: $e', 'isSpeaking': 'false'});
       });
     } finally {
       setState(() => _isLoading = false);
