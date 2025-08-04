@@ -13,15 +13,201 @@ class AIService {
         throw Exception('Gemini API key not configured');
       }
 
-      String schema = _getDatabaseSchema();
-      String sqlQuery = await _generateSQLQuery(userQuery, schema);
-      List<Map<String, dynamic>> results = await _databaseService.executeQuery(sqlQuery);
-      String response = await _generateNaturalLanguageResponse(userQuery, results);
+      // 1. Intent Recognition
+      String intent = await _recognizeIntent(userQuery);
+      List<Map<String, dynamic>> results;
+      String response;
+
+      // 2. Route to appropriate handler
+      switch (intent) {
+        case 'get_best_seller':
+          results = await _handleBestSellerQuery(userQuery);
+          response = await _generateNaturalLanguageResponse(userQuery, results);
+          break;
+        case 'get_credit_transactions':
+          results = await _handleCreditTransactionsQuery(userQuery);
+          response = await _generateNaturalLanguageResponse(userQuery, results);
+          break;
+        case 'get_low_stock_items':
+          results = await _handleLowStockItemsQuery();
+          response = await _generateNaturalLanguageResponse(userQuery, results);
+          break;
+        case 'get_top_debtor':
+          results = await _handleTopDebtorQuery(userQuery);
+          response = await _generateNaturalLanguageResponse(userQuery, results);
+          break;
+        case 'get_sales_suggestions':
+          response = await _handleSalesSuggestionsQuery();
+          break;
+        case 'general_query':
+        default:
+          String schema = _getDatabaseSchema();
+          String sqlQuery = await _generateSQLQuery(userQuery, schema);
+          results = await _databaseService.executeQuery(sqlQuery);
+          response = await _generateNaturalLanguageResponse(userQuery, results);
+          break;
+      }
+
       return response;
     } catch (e) {
       return 'Sorry, I couldn’t process your request. Error: $e. Please try a different query or check your configuration.';
     }
   }
+
+  Future<String> _recognizeIntent(String userQuery) async {
+    final gemini = Gemini.instance;
+    final response = await gemini.prompt(
+      parts: [
+        Part.text(
+          'You are an intent recognition system for an inventory management app. Classify the user\'s query into one of the following categories and return only the category name:\n'
+          '- get_best_seller: For queries about top-selling or most-sold items.\n'
+          '- get_credit_transactions: For queries about credit, debt, or "udhaar" transactions.\n'
+          '- get_low_stock_items: For queries about items that are low in stock or need reordering.\n'
+          '- get_top_debtor: For queries about which customer has the most credit or debt.\n'
+          '- get_sales_suggestions: For queries asking for advice or suggestions to improve sales.\n'
+          '- general_query: For all other queries.\n\n'
+          'User Query: "$userQuery"\n\n'
+          'Intent:',
+        ),
+      ],
+      model: 'models/gemini-1.5-flash',
+      generationConfig: GenerationConfig(
+        temperature: 0.0,
+        maxOutputTokens: 50,
+      ),
+    );
+
+    String intent = response?.output?.trim() ?? 'general_query';
+    // Basic validation to ensure the output is one of the expected intents
+    const validIntents = {
+      'get_best_seller',
+      'get_credit_transactions',
+      'get_low_stock_items',
+      'get_top_debtor',
+      'get_sales_suggestions',
+      'general_query'
+    };
+    if (validIntents.contains(intent)) {
+      return intent;
+    }
+    return 'general_query';
+  }
+
+  // --- Handlers for Specific Intents ---
+
+  Future<List<Map<String, dynamic>>> _handleBestSellerQuery(String userQuery) {
+    String dateFilter = "date >= date('now', '-30 days')";
+    if (userQuery.toLowerCase().contains('today')) {
+      dateFilter = "date(date) = date('now')";
+    }
+    final query = """
+      SELECT itemName, SUM(quantity) as total_quantity
+      FROM transactions
+      WHERE type = 'sale' AND $dateFilter
+      GROUP BY itemName
+      ORDER BY total_quantity DESC
+      LIMIT 5;
+    """;
+    return _databaseService.executeQuery(query);
+  }
+
+  Future<List<Map<String, dynamic>>> _handleCreditTransactionsQuery(String userQuery) {
+    String dateFilter = "date >= date('now', '-30 days')";
+    if (userQuery.toLowerCase().contains('today')) {
+      dateFilter = "date(date) = date('now')";
+    }
+    final query = """
+      SELECT COUNT(*) as credit_transactions_count, SUM(amount) as total_credit_amount
+      FROM debts
+      WHERE type = 'owed_to_me' AND $dateFilter;
+    """;
+    return _databaseService.executeQuery(query);
+  }
+
+  Future<List<Map<String, dynamic>>> _handleLowStockItemsQuery() {
+    final query = """
+      SELECT name, currentStock, minStock
+      FROM inventory
+      WHERE currentStock <= minStock
+      ORDER BY currentStock ASC;
+    """;
+    return _databaseService.executeQuery(query);
+  }
+
+  Future<List<Map<String, dynamic>>> _handleTopDebtorQuery(String userQuery) {
+    String dateFilter = "date >= date('now', '-30 days')";
+    if (userQuery.toLowerCase().contains('today')) {
+      dateFilter = "date(date) = date('now')";
+    }
+    final query = """
+      SELECT personName, SUM(amount) as total_debt
+      FROM debts
+      WHERE type = 'owed_to_me' AND isPaid = 0 AND $dateFilter
+      GROUP BY personName
+      ORDER BY total_debt DESC
+      LIMIT 5;
+    """;
+    return _databaseService.executeQuery(query);
+  }
+
+  Future<String> _handleSalesSuggestionsQuery() async {
+    // 1. Get top 3 best sellers in the last 30 days
+    final bestSellersQuery = """
+      SELECT itemName, SUM(quantity) as total_quantity
+      FROM transactions
+      WHERE type = 'sale' AND date >= date('now', '-30 days')
+      GROUP BY itemName
+      ORDER BY total_quantity DESC
+      LIMIT 3;
+    """;
+    final bestSellers = await _databaseService.executeQuery(bestSellersQuery);
+
+    // 2. Get top 3 low-stock items
+    final lowStockQuery = """
+      SELECT name, currentStock
+      FROM inventory
+      WHERE currentStock <= minStock
+      ORDER BY currentStock ASC
+      LIMIT 3;
+    """;
+    final lowStockItems = await _databaseService.executeQuery(lowStockQuery);
+
+    // 3. Get total sales trend for the last 7 days
+    final salesTrendQuery = """
+      SELECT date(date) as sale_date, SUM(totalAmount) as daily_sales
+      FROM transactions
+      WHERE type = 'sale' AND date >= date('now', '-7 days')
+      GROUP BY sale_date
+      ORDER BY sale_date ASC;
+    """;
+    final salesTrend = await _databaseService.executeQuery(salesTrendQuery);
+
+    // 4. Generate suggestions using the gathered data
+    final gemini = Gemini.instance;
+    final prompt = """
+      You are an expert business analyst for an inventory management system. Based on the following data, provide actionable suggestions to increase sales. The response should be concise, easy to understand for a small business owner, and in Markdown format.
+
+      **Data Summary:**
+
+      *   **Best Sellers (Last 30 Days):** ${jsonEncode(bestSellers)}
+      *   **Low Stock Items:** ${jsonEncode(lowStockItems)}
+      *   **Sales Trend (Last 7 Days):** ${jsonEncode(salesTrend)}
+
+      **Suggestions:**
+    """;
+
+    final response = await gemini.prompt(
+      parts: [Part.text(prompt)],
+      model: 'models/gemini-1.5-flash',
+      generationConfig: GenerationConfig(
+        temperature: 0.8,
+        maxOutputTokens: 400,
+      ),
+    );
+
+    return response?.output ?? "I couldn't generate any sales suggestions at the moment. Please try again later.";
+  }
+
 
   String _getDatabaseSchema() {
     return '''
