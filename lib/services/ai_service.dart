@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'database_service.dart';
@@ -7,7 +8,9 @@ class AIService {
   final String? _apiKey = dotenv.env['GEMINI_API_KEY'];
   final DatabaseService _databaseService = DatabaseService();
 
-  Future<String> processQuery(String userQuery) async {
+  Future<String> processQuery(String userQuery, {String languageCode = 'en-US'}) async {
+    log('--- Starting AI Query Process ---');
+    log('User Query: $userQuery, Language: $languageCode');
     try {
       if (_apiKey == null) {
         throw Exception('Gemini API key not configured');
@@ -15,6 +18,7 @@ class AIService {
 
       // 1. Intent Recognition
       String intent = await _recognizeIntent(userQuery);
+      log('Recognized Intent: $intent');
       List<Map<String, dynamic>> results;
       String response;
 
@@ -22,39 +26,44 @@ class AIService {
       switch (intent) {
         case 'get_best_seller':
           results = await _handleBestSellerQuery(userQuery);
-          response = await _generateNaturalLanguageResponse(userQuery, results);
+          response = await _generateNaturalLanguageResponse(userQuery, results, languageCode: languageCode);
           break;
         case 'get_credit_transactions':
           results = await _handleCreditTransactionsQuery(userQuery);
-          response = await _generateNaturalLanguageResponse(userQuery, results);
+          response = await _generateNaturalLanguageResponse(userQuery, results, languageCode: languageCode);
           break;
         case 'get_low_stock_items':
           results = await _handleLowStockItemsQuery();
-          response = await _generateNaturalLanguageResponse(userQuery, results);
+          response = await _generateNaturalLanguageResponse(userQuery, results, languageCode: languageCode);
           break;
         case 'get_top_debtor':
           results = await _handleTopDebtorQuery(userQuery);
-          response = await _generateNaturalLanguageResponse(userQuery, results);
+          response = await _generateNaturalLanguageResponse(userQuery, results, languageCode: languageCode);
           break;
         case 'get_sales_suggestions':
-          response = await _handleSalesSuggestionsQuery();
+          response = await _handleSalesSuggestionsQuery(languageCode: languageCode);
           break;
         case 'general_query':
         default:
+          log('Falling back to general query handler.');
           String schema = _getDatabaseSchema();
           String sqlQuery = await _generateSQLQuery(userQuery, schema);
+          log('Generated SQL Query: $sqlQuery');
           results = await _databaseService.executeQuery(sqlQuery);
-          response = await _generateNaturalLanguageResponse(userQuery, results);
+          log('Query Results: ${results.length} rows');
+          response = await _generateNaturalLanguageResponse(userQuery, results, languageCode: languageCode);
           break;
       }
-
+      log('--- Finished AI Query Process ---');
       return response;
     } catch (e) {
+      log('Error in processQuery: $e', error: e);
       return 'Sorry, I couldn’t process your request. Error: $e. Please try a different query or check your configuration.';
     }
   }
 
   Future<String> _recognizeIntent(String userQuery) async {
+    log('Recognizing intent...');
     final gemini = Gemini.instance;
     final response = await gemini.prompt(
       parts: [
@@ -88,14 +97,17 @@ class AIService {
       'general_query'
     };
     if (validIntents.contains(intent)) {
+      log('Intent recognized: $intent');
       return intent;
     }
+    log('Intent recognition failed, falling back to general_query.');
     return 'general_query';
   }
 
   // --- Handlers for Specific Intents ---
 
   Future<List<Map<String, dynamic>>> _handleBestSellerQuery(String userQuery) {
+    log('Handling best seller query...');
     String dateFilter = "date >= date('now', '-30 days')";
     if (userQuery.toLowerCase().contains('today')) {
       dateFilter = "date(date) = date('now')";
@@ -112,6 +124,7 @@ class AIService {
   }
 
   Future<List<Map<String, dynamic>>> _handleCreditTransactionsQuery(String userQuery) {
+    log('Handling credit transactions query...');
     String dateFilter = "date >= date('now', '-30 days')";
     if (userQuery.toLowerCase().contains('today')) {
       dateFilter = "date(date) = date('now')";
@@ -125,6 +138,7 @@ class AIService {
   }
 
   Future<List<Map<String, dynamic>>> _handleLowStockItemsQuery() {
+    log('Handling low stock items query...');
     final query = """
       SELECT name, currentStock, minStock
       FROM inventory
@@ -135,6 +149,7 @@ class AIService {
   }
 
   Future<List<Map<String, dynamic>>> _handleTopDebtorQuery(String userQuery) {
+    log('Handling top debtor query...');
     String dateFilter = "date >= date('now', '-30 days')";
     if (userQuery.toLowerCase().contains('today')) {
       dateFilter = "date(date) = date('now')";
@@ -150,7 +165,8 @@ class AIService {
     return _databaseService.executeQuery(query);
   }
 
-  Future<String> _handleSalesSuggestionsQuery() async {
+  Future<String> _handleSalesSuggestionsQuery({String languageCode = 'en-US'}) async {
+    log('Handling sales suggestions query...');
     // 1. Get top 3 best sellers in the last 30 days
     final bestSellersQuery = """
       SELECT itemName, SUM(quantity) as total_quantity
@@ -184,8 +200,12 @@ class AIService {
 
     // 4. Generate suggestions using the gathered data
     final gemini = Gemini.instance;
+    final languageInstruction = languageCode == 'hi-IN'
+        ? 'The response must be in Hindi.'
+        : 'The response must be in English.';
+
     final prompt = """
-      You are an expert business analyst for an inventory management system. Based on the following data, provide actionable suggestions to increase sales. The response should be concise, easy to understand for a small business owner, and in Markdown format.
+      You are an expert business analyst for an inventory management system. Based on the following data, provide actionable suggestions to increase sales. The response should be concise, easy to understand for a small business owner, and in Markdown format. If the response is long, summarize it. $languageInstruction
 
       **Data Summary:**
 
@@ -195,13 +215,13 @@ class AIService {
 
       **Suggestions:**
     """;
-
+    log('Generating sales suggestions with prompt...');
     final response = await gemini.prompt(
       parts: [Part.text(prompt)],
       model: 'models/gemini-1.5-flash',
       generationConfig: GenerationConfig(
         temperature: 0.8,
-        maxOutputTokens: 400,
+        maxOutputTokens: 150,
       ),
     );
 
@@ -258,6 +278,7 @@ Table: categories
   }
 
   Future<String> _generateSQLQuery(String userQuery, String schema) async {
+    log('Generating SQL query...');
     final gemini = Gemini.instance;
     final response = await gemini.prompt(
       parts: [
@@ -268,7 +289,7 @@ Table: categories
       model: 'models/gemini-1.5-flash',
       generationConfig: GenerationConfig(
         temperature: 0.2,
-        maxOutputTokens: 178,
+        maxOutputTokens: 150,
       ),
     );
 
@@ -288,6 +309,7 @@ Table: categories
           query.toLowerCase().contains('truncate')) {
         throw Exception('Potentially dangerous query detected');
       }
+      log('Generated SQL: $query');
       return query;
     } else {
       throw Exception('Failed to generate SQL query');
@@ -295,22 +317,28 @@ Table: categories
   }
 
   Future<String> _generateNaturalLanguageResponse(
-      String userQuery, List<Map<String, dynamic>> results) async {
+      String userQuery, List<Map<String, dynamic>> results, {String languageCode = 'en-US'}) async {
+    log('Generating natural language response...');
     final gemini = Gemini.instance;
+    final languageInstruction = languageCode == 'hi-IN'
+        ? 'The user wants the response in Hindi. Please provide the response in Hindi.'
+        : 'The user wants the response in English. Please provide the response in English.';
+
     final response = await gemini.prompt(
       parts: [
         Part.text(
-          'You are a helpful assistant for an inventory management system. Convert database query results into clear, concise, and natural language responses. If results are empty, provide an appropriate message. User asked: "$userQuery"\n\nDatabase results: ${jsonEncode(results)}\n\nProvide a natural language response(note- all amounts are in indian rupees ₹):',
+          'You are a helpful assistant for an inventory management system. Convert database query results into clear, concise, and natural language responses. If the response is long, summarize it. If results are empty, provide an appropriate message. $languageInstruction\n\nUser asked: "$userQuery"\n\nDatabase results: ${jsonEncode(results)}\n\nProvide a natural language response (note- all amounts are in Indian Rupees ₹):',
         ),
       ],
       model: 'models/gemini-1.5-flash',
       generationConfig: GenerationConfig(
         temperature: 0.7,
-        maxOutputTokens: 250,
+        maxOutputTokens: 150,
       ),
     );
 
     if (response?.output != null) {
+      log('Generated response successfully.');
       return response!.output!.trim();
     } else {
       throw Exception('Failed to generate response');

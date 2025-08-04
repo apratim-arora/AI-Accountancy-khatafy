@@ -23,14 +23,16 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
 
   final List<Map<String, String>> _messages = [];
 
-final List<String> _suggestions = [
-  'Which items sell the most?', // get_best_seller
-  'Show me my top-selling products', // get_best_seller
-  'What are my outstanding debts?', // get_credit_transactions
-  'इस महीने की कुल आय क्या है?', // general_query (Hindi)
-  'कम स्टॉक वाली वस्तुएं दिखाएं', // get_low_stock_items (Hindi)
-  'किन उत्पादों को फिर से ऑर्डर करने की जरूरत है?', // get_low_stock_items (Hindi)
-];
+  final List<String> _suggestions = [
+    'What is my total revenue this month?',
+    'Show me low stock items',
+    'What are my outstanding debts?',
+    'How much profit did I make this week?',
+    'Show me recent transactions',
+    'Which items sell the most?',
+    'इस महीने की कुल आय क्या है?', // Hindi suggestion
+    'कम स्टॉक वाली वस्तुएं दिखाएं', // Hindi suggestion
+  ];
 
   // Language options for voice input
   final Map<String, String> _languageOptions = {
@@ -99,16 +101,20 @@ final List<String> _suggestions = [
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.65,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      builder: (_, __) {
-        return Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Container(
-            padding: const EdgeInsets.all(16),
+    return Material(
+      color: Colors.transparent,
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (_, controller) {
+          return Container(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+            ),
             decoration: BoxDecoration(
               color: colorScheme.surface,
               borderRadius:
@@ -171,6 +177,7 @@ final List<String> _suggestions = [
                 // Chat area
                 Expanded(
                   child: ListView(
+                    controller: controller,
                     reverse: true,
                     children: [
                       if (_messages.isEmpty) ...[
@@ -389,9 +396,9 @@ final List<String> _suggestions = [
                   ),
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -460,6 +467,10 @@ final List<String> _suggestions = [
     final input = _queryController.text.trim();
     if (input.isEmpty) return;
 
+    // Detect language from input before sending
+    _updateLanguage(input);
+    final languageForQuery = _currentLanguage;
+
     setState(() {
       _messages.add({'role': 'user', 'content': input, 'isSpeaking': 'false'});
       _isLoading = true;
@@ -467,26 +478,27 @@ final List<String> _suggestions = [
     });
 
     try {
-      final response = await _aiService.processQuery(input);
+      final response = await _aiService.processQuery(input, languageCode: languageForQuery);
       setState(() {
-        _messages
-            .add({'role': 'ai', 'content': response, 'isSpeaking': 'false'});
+        _messages.add({'role': 'ai', 'content': response, 'isSpeaking': 'false'});
       });
 
       // Automatically speak AI response in the appropriate language
-      _updateLanguage(response);
       final cleanText = _stripMarkdown(response);
-      final speechLang = _isHindiInput(response) ? 'hi-IN' : 'en-US';
-      _speechService.setLanguage(speechLang);
+      // The response language should match the query language
+      _speechService.setLanguage(languageForQuery);
 
       await _speechService.speak(cleanText);
       setState(() {
-        _messages.last['isSpeaking'] = 'true';
+        // Find the message and mark it as speaking
+        final messageIndex = _messages.indexWhere((m) => m['content'] == response && m['role'] == 'ai');
+        if (messageIndex != -1) {
+          _messages[messageIndex]['isSpeaking'] = 'true';
+        }
       });
     } catch (e) {
       setState(() {
-        _messages
-            .add({'role': 'ai', 'content': 'Error: $e', 'isSpeaking': 'false'});
+        _messages.add({'role': 'ai', 'content': 'Error: $e', 'isSpeaking': 'false'});
       });
     } finally {
       setState(() => _isLoading = false);
