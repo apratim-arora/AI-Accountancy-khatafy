@@ -23,16 +23,14 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
 
   final List<Map<String, String>> _messages = [];
 
-  final List<String> _suggestions = [
-    'What is my total revenue this month?',
-    'Show me low stock items',
-    'What are my outstanding debts?',
-    'How much profit did I make this week?',
-    'Show me recent transactions',
-    'Which items sell the most?',
-    'इस महीने की कुल आय क्या है?', // Hindi suggestion
-    'कम स्टॉक वाली वस्तुएं दिखाएं', // Hindi suggestion
-  ];
+final List<String> _suggestions = [
+  'Which items sell the most?', // get_best_seller
+  'Show me my top-selling products', // get_best_seller
+  'What are my outstanding debts?', // get_credit_transactions
+  'इस महीने की कुल आय क्या है?', // general_query (Hindi)
+  'कम स्टॉक वाली वस्तुएं दिखाएं', // get_low_stock_items (Hindi)
+  'किन उत्पादों को फिर से ऑर्डर करने की जरूरत है?', // get_low_stock_items (Hindi)
+];
 
   // Language options for voice input
   final Map<String, String> _languageOptions = {
