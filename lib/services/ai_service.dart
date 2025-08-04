@@ -205,7 +205,7 @@ class AIService {
         : 'The response must be in English.';
 
     final prompt = """
-      You are an expert business analyst for an inventory management system. Based on the following data, provide actionable suggestions to increase sales. The response should be concise, easy to understand for a small business owner, and in Markdown format. If the response is long, summarize it. $languageInstruction
+      You are an expert business analyst for an inventory management system. Based on the following data, provide actionable suggestions to increase sales. The response should be concise, easy to understand for a small business owner, and in Markdown format. The response should be around 100-150 words. $languageInstruction
 
       **Data Summary:**
 
@@ -327,7 +327,7 @@ Table: categories
     final response = await gemini.prompt(
       parts: [
         Part.text(
-          'You are a helpful assistant for an inventory management system. Convert database query results into clear, concise, and natural language responses. If the response is long, summarize it. If results are empty, provide an appropriate message. $languageInstruction\n\nUser asked: "$userQuery"\n\nDatabase results: ${jsonEncode(results)}\n\nProvide a natural language response (note- all amounts are in Indian Rupees ₹):',
+          'You are a helpful assistant for an inventory management system. Convert database query results into clear, concise, and natural language responses. The response should be around 100-150 words. If results are empty, provide an appropriate message. $languageInstruction\n\nUser asked: "$userQuery"\n\nDatabase results: ${jsonEncode(results)}\n\nProvide a natural language response (note- all amounts are in Indian Rupees ₹):',
         ),
       ],
       model: 'models/gemini-1.5-flash',

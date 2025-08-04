@@ -107,6 +107,7 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
         initialChildSize: 0.65,
         minChildSize: 0.4,
         maxChildSize: 0.95,
+        expand: false,
         builder: (_, controller) {
           return Container(
             padding: EdgeInsets.only(
@@ -176,12 +177,15 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
 
                 // Chat area
                 Expanded(
-                  child: ListView(
-                    controller: controller,
-                    reverse: true,
-                    children: [
-                      if (_messages.isEmpty) ...[
-                        const SizedBox(height: 32),
+                  child: GestureDetector(
+                    onVerticalDragUpdate: (details) {},
+                    child: ListView(
+                      controller: controller,
+                      reverse: true,
+                      physics: const ClampingScrollPhysics(),
+                      children: [
+                        if (_messages.isEmpty) ...[
+                          const SizedBox(height: 32),
                         Center(
                           child: Column(
                             children: [
