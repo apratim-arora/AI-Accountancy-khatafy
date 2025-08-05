@@ -104,9 +104,10 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
     return Material(
       color: Colors.transparent,
       child: DraggableScrollableSheet(
-        initialChildSize: 0.65,
-        minChildSize: 0.4,
+        initialChildSize: 0.85,
         maxChildSize: 0.95,
+        snap: true,
+        snapSizes: const [ 0.85, 0.95],
         expand: false,
         builder: (_, controller) {
           return Container(
@@ -176,141 +177,142 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                 const SizedBox(height: 12),
 
                 // Chat area
-                Expanded(
-                  child: GestureDetector(
-                    onVerticalDragUpdate: (details) {},
-                    child: ListView(
-                      controller: controller,
-                      reverse: true,
-                      physics: const ClampingScrollPhysics(),
-                      children: [
-                        if (_messages.isEmpty) ...[
-                          const SizedBox(height: 32),
-                        Center(
-                          child: Column(
-                            children: [
-                              const Text(
-                                'Ask anything about your inventory!',
-                                style:
-                                    TextStyle(fontSize: 16, color: Colors.grey),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Voice Language: ${_languageOptions[_selectedVoiceLanguage]}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-
-                      // Chat Messages
-                      ..._messages.reversed.map((message) {
-                        final isUser = message['role'] == 'user';
-                        final isAI = message['role'] == 'ai';
-
-                        return Align(
-                          alignment: isUser
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaQuery.of(context).size.width * 0.75,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isUser
-                                  ? Colors.blue[100]
-                                  : colorScheme.surfaceContainerHighest
-                                      .withOpacity(0.6),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                isAI
-                                    ? MarkdownBody(
-                                        data: message['content'] ?? '',
-                                        styleSheet: MarkdownStyleSheet(
-                                          p: const TextStyle(
-                                            color: Colors.black87,
-                                            fontSize: 14,
-                                          ),
-                                          strong: const TextStyle(
-                                              fontWeight: FontWeight.bold),
-                                          em: const TextStyle(
-                                              fontStyle: FontStyle.italic),
-                                          listBullet:
-                                              const TextStyle(fontSize: 14),
-                                        ),
-                                      )
-                                    : Text(
-                                        message['content'] ?? '',
-                                        style: TextStyle(
-                                          color: Colors.blue[900],
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                if (isAI)
-                                  Align(
-                                    alignment: Alignment.bottomRight,
-                                    child: IconButton(
-                                      icon: Icon(
-                                        _speechService.isSpeaking &&
-                                                message['isSpeaking'] == 'true'
-                                            ? Icons.volume_off
-                                            : Icons.volume_up,
-                                        size: 18,
-                                      ),
-                                      onPressed: () => _toggleSpeak(message),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-
-                      const SizedBox(height: 12),
-
-                      // Suggestion Chips
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _suggestions.map((suggestion) {
-                          return ActionChip(
-                            label: Text(suggestion),
-                            onPressed: () {
-                              _queryController.text = suggestion;
-                              _updateLanguage(suggestion);
-                              // Auto-switch voice language based on suggestion language
-                              if (_isHindiInput(suggestion) &&
-                                  _selectedVoiceLanguage != 'hi-IN') {
-                                _changeVoiceLanguage('hi-IN');
-                              } else if (!_isHindiInput(suggestion) &&
-                                  _selectedVoiceLanguage != 'en-US') {
-                                _changeVoiceLanguage('en-US');
-                              }
-                            },
-                            backgroundColor: Colors.blue.withOpacity(0.1),
-                            labelStyle: TextStyle(color: Colors.blue[800]),
-                            shape: StadiumBorder(
-                              side: BorderSide(
-                                  color: Colors.blue.withOpacity(0.3)),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
+Expanded(
+  child: GestureDetector(
+    onVerticalDragUpdate: (details) {},
+    child: ListView(
+      // controller: controller,
+      reverse: true,
+      physics: const ClampingScrollPhysics(),
+      children: [
+        // Fixed: Proper conditional rendering
+        if (_messages.isEmpty) ...[
+          const SizedBox(height: 32),
+          Center(
+            child: Column(
+              children: [
+                const Text(
+                  'Ask anything about your inventory!',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Voice Language: ${_languageOptions[_selectedVoiceLanguage]}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
+              ],
+            ),
+          ),
+        ],
+
+        // Chat Messages
+        ..._messages.reversed.map((message) {
+          final isUser = message['role'] == 'user';
+          final isAI = message['role'] == 'ai';
+
+          return Align(
+            alignment: isUser
+                ? Alignment.centerRight
+                : Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 10),
+              constraints: BoxConstraints(
+                maxWidth:
+                    MediaQuery.of(context).size.width * 0.75,
+              ),
+              decoration: BoxDecoration(
+                color: isUser
+                    ? Colors.blue[100]
+                    : colorScheme.surfaceContainerHighest
+                        .withOpacity(0.6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  isAI
+                      ? MarkdownBody(
+                          data: message['content'] ?? '',
+                          styleSheet: MarkdownStyleSheet(
+                            p: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 14,
+                            ),
+                            strong: const TextStyle(
+                                fontWeight: FontWeight.bold),
+                            em: const TextStyle(
+                                fontStyle: FontStyle.italic),
+                            listBullet:
+                                const TextStyle(fontSize: 14),
+                          ),
+                        )
+                      : Text(
+                          message['content'] ?? '',
+                          style: TextStyle(
+                            color: Colors.blue[900],
+                            fontSize: 14,
+                          ),
+                        ),
+                  if (isAI)
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: IconButton(
+                        icon: Icon(
+                          _speechService.isSpeaking &&
+                                  message['isSpeaking'] == 'true'
+                              ? Icons.volume_off
+                              : Icons.volume_up,
+                          size: 18,
+                        ),
+                        onPressed: () => _toggleSpeak(message),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        }),
+
+        const SizedBox(height: 12),
+
+        // Suggestion Chips
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _suggestions.map((suggestion) {
+            return ActionChip(
+              label: Text(suggestion),
+              onPressed: () {
+                _queryController.text = suggestion;
+                _updateLanguage(suggestion);
+                // Auto-switch voice language based on suggestion language
+                if (_isHindiInput(suggestion) &&
+                    _selectedVoiceLanguage != 'hi-IN') {
+                  _changeVoiceLanguage('hi-IN');
+                } else if (!_isHindiInput(suggestion) &&
+                    _selectedVoiceLanguage != 'en-US') {
+                  _changeVoiceLanguage('en-US');
+                }
+              },
+              backgroundColor: Colors.blue.withOpacity(0.1),
+              labelStyle: TextStyle(color: Colors.blue[800]),
+              shape: StadiumBorder(
+                side: BorderSide(
+                    color: Colors.blue.withOpacity(0.3)),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    ),
+  ),
+),
 
                 const SizedBox(height: 8),
 
@@ -384,7 +386,6 @@ class _AIChatBottomSheetState extends State<AIChatBottomSheet> {
                     ),
                   ],
                 ),
-
                 // Voice language status indicator
                 if (_isListening)
                   Padding(
