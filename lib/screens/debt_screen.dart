@@ -39,63 +39,68 @@ class _DebtScreenState extends ConsumerState<DebtScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-      appBar: AppBar(
-        title: const Text(
-          'Debts',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 22,
-            letterSpacing: 0.5,
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.purple.shade700, Colors.purple.shade400],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        foregroundColor: Colors.white,
-        elevation: 2,
-        shadowColor: Colors.purple.shade200.withOpacity(0.5),
-        bottom: TabBar(
-          indicatorPadding: const EdgeInsetsGeometry.symmetric(vertical: 5),
-          labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-          controller: _tabController,
-          indicator: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.white, Colors.white.withOpacity(0.7)],
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
-          labelColor: Colors.purple,
-          unselectedLabelColor: Colors.white,
-          tabs: const [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Tab(
-                text: 'Money I Owe',
+      body: NestedScrollView(
+        headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+          return <Widget>[
+            SliverAppBar(
+              title: const Text(
+                'Debts',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 22,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              pinned: true,
+              floating: true,
+              flexibleSpace: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.purple.shade700, Colors.purple.shade400],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shadowColor: Colors.purple.shade200.withOpacity(0.5),
+              bottom: TabBar(
+                indicatorPadding:
+                    const EdgeInsetsGeometry.symmetric(vertical: 5),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                controller: _tabController,
+                indicator: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.white, Colors.white.withOpacity(0.7)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+                unselectedLabelStyle:
+                    const TextStyle(fontWeight: FontWeight.w400),
+                labelColor: Colors.purple,
+                unselectedLabelColor: Colors.white,
+                tabs: const [
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Tab(
+                      text: 'Money I Owe',
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Tab(text: 'Money Owed to Me'),
+                  ),
+                ],
               ),
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Tab(text: 'Money Owed to Me'),
-            ),
-          ],
-        ),
-      ),
-      body: SingleChildScrollView( // Wrap the Column with SingleChildScrollView
-        child: Column(
+          ];
+        },
+        body: Column(
           children: [
             FadeInUp(child: _buildDebtSummary()),
-            // The TabBarView needs a fixed height when inside a SingleChildScrollView
-            // You can use a SizedBox with a specific height or calculate it dynamically
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.4, // Adjust this value as needed
+            Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
