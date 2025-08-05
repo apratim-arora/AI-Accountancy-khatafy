@@ -671,6 +671,7 @@ class _AddDebtFormState extends ConsumerState<AddDebtForm> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _contactNumberController = TextEditingController();
+  final _dueDateController = TextEditingController();
 
   String _selectedType = 'owed_to_me';
   String _selectedPaymentMethod = 'cash';
@@ -683,7 +684,23 @@ class _AddDebtFormState extends ConsumerState<AddDebtForm> {
     _amountController.dispose();
     _descriptionController.dispose();
     _contactNumberController.dispose();
+    _dueDateController.dispose();
     super.dispose();
+  }
+
+  void _pickDueDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDueDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDueDate = picked;
+        _dueDateController.text = DateFormat('dd MMM, yyyy').format(picked);
+      });
+    }
   }
 
   @override
@@ -697,110 +714,126 @@ class _AddDebtFormState extends ConsumerState<AddDebtForm> {
       ),
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Add Debt',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 20),
-            DropdownButtonFormField<String>(
-              value: _selectedType,
-              decoration: const InputDecoration(
-                labelText: 'Type',
-                border: OutlineInputBorder(),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Add Debt',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-              items: const [
-                DropdownMenuItem(
-                    value: 'owed_to_me', child: Text('Money Owed to Me')),
-                DropdownMenuItem(value: 'i_owe', child: Text('Money I Owe')),
-              ],
-              onChanged: (value) => setState(() => _selectedType = value!),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _personNameController,
-              decoration: const InputDecoration(
-                labelText: 'Person Name',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                value: _selectedType,
+                decoration: const InputDecoration(
+                  labelText: 'Type',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'owed_to_me', child: Text('Money Owed to Me')),
+                  DropdownMenuItem(value: 'i_owe', child: Text('Money I Owe')),
+                ],
+                onChanged: (value) => setState(() => _selectedType = value!),
               ),
-              validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _personNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Person Name',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    value?.isEmpty ?? true ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Amount',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) =>
+                          value?.isEmpty ?? true ? 'Required' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _contactNumberController,
+                      decoration: const InputDecoration(
+                        labelText: 'Contact Number',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: _pickDueDate,
+                child: AbsorbPointer(
                   child: TextFormField(
-                    controller: _amountController,
+                    controller: _dueDateController,
                     decoration: const InputDecoration(
-                      labelText: 'Amount',
+                      labelText: 'Due Date (Optional)',
                       border: OutlineInputBorder(),
                     ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) =>
-                        value?.isEmpty ?? true ? 'Required' : null,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _contactNumberController,
-                    decoration: const InputDecoration(
-                      labelText: 'Contact Number',
-                      border: OutlineInputBorder(),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedPaymentMethod,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Method',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                  DropdownMenuItem(value: 'card', child: Text('Card')),
+                  DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                  DropdownMenuItem(
+                      value: 'bank_transfer', child: Text('Bank Transfer')),
+                ],
+                onChanged: (value) =>
+                    setState(() => _selectedPaymentMethod = value!),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
                     ),
-                    keyboardType: TextInputType.phone,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedPaymentMethod,
-              decoration: const InputDecoration(
-                labelText: 'Payment Method',
-                border: OutlineInputBorder(),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _saveDebt,
+                      child: const Text('Save'),
+                    ),
+                  ),
+                ],
               ),
-              items: const [
-                DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                DropdownMenuItem(value: 'card', child: Text('Card')),
-                DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                DropdownMenuItem(
-                    value: 'bank_transfer', child: Text('Bank Transfer')),
-              ],
-              onChanged: (value) =>
-                  setState(() => _selectedPaymentMethod = value!),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _saveDebt,
-                    child: const Text('Save'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );

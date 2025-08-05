@@ -115,7 +115,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
         ),
         child: FloatingActionButton(
           heroTag: "add_transaction",
-          onPressed: () => _showAddTransactionForm(),
+          onPressed: () => _showTransactionTypeDialog(),
           backgroundColor: Colors.blue.shade600,
           foregroundColor: Colors.white,
           elevation: 6,
@@ -124,6 +124,56 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
           ),
           child: const Icon(Icons.add, size: 28),
         ),
+      ),
+    );
+  }
+
+  void _showTransactionTypeDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('New Transaction'),
+          content: const Text('What type of transaction would you like to add?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Purchase'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _navigateToAddTransactionForm('purchase');
+              },
+            ),
+            TextButton(
+              child: const Text('Sale'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _navigateToAddTransactionForm('sale');
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _navigateToAddTransactionForm(String type) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade300,
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: AddTransactionForm(type),
       ),
     );
   }
@@ -362,28 +412,6 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showAddTransactionForm() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.shade300,
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: const AddTransactionForm('sale'),
       ),
     );
   }
